@@ -1,6 +1,6 @@
-# Simple publish-subscribe protocol
+# Simple publish-subscribe protocol (OpenWrt)
 
-SPSP connects low power IoT clients to MQTT[^mqtt] or other protocols.
+SPSP connects low power IoT clients to MQTT or other protocols.
 
 It's an extensible framework for publish-subscribe pattern.
 
@@ -24,7 +24,7 @@ src-git spsp https://github.com/DavidB137/spsp-openwrt.git;main
 
 Run:
 
-```
+```sh
 ./scripts/feeds update -a
 ./scripts/feeds install -a
 make package/spsp/compile
