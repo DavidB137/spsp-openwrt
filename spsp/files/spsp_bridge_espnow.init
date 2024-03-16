@@ -1,0 +1,81 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2024 David Benko
+
+START=50
+
+USE_PROCD=1
+PROG_NAME="spsp_bridge_espnow"
+PROG="/usr/bin/$PROG_NAME"
+
+save_config_attr() {
+	local conf="$1"
+	local attr_uci="$2"
+	local attr_ini="$3"
+	local file="$4"
+	local value
+
+	config_get value "$conf" "$attr_uci"
+	[ -n "$value" ] && echo "$attr_ini=$value" >> "$file"
+}
+
+start_instance() {
+	local conf="$1"
+	local disabled
+	local buf
+	local value
+
+	config_get_bool disabled "$conf" disabled 0
+	[ "$disabled" -gt 0 ] && return 0
+
+	local conf_tmp_file="/var/run/$PROG_NAME.$conf"
+	rm -f "$conf_tmp_file"
+
+	# Create process
+	procd_open_instance
+	procd_set_param command $PROG
+	procd_append_param command $conf_tmp_file
+	procd_set_param stderr 1
+	procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
+
+	# Build INI config
+	save_config_attr "$conf" far_layer far_layer "$conf_tmp_file"
+	save_config_attr "$conf" log_level log_level "$conf_tmp_file"
+
+	echo "[espnow]" >> "$conf_tmp_file"
+	save_config_attr "$conf" interface interface "$conf_tmp_file"
+	save_config_attr "$conf" ssid ssid "$conf_tmp_file"
+	save_config_attr "$conf" password password "$conf_tmp_file"
+
+	echo "[mqtt]" >> "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_uri uri "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_verify_crt verify_crt "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_keepalive keepalive "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_qos qos "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_retain retain "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_conn_timeout conn_timeout "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_username username "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_password password "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_client_id client_id "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_crt crt "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_crt_key crt_key "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_lwt_topic lwt_topic "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_lwt_msg lwt_msg "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_lwt_qos lwt_qos "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_lwt_retain lwt_retain "$conf_tmp_file"
+	save_config_attr "$conf" mqtt_topic_prefix topic_prefix "$conf_tmp_file"
+
+	echo "[local_broker]" >> "$conf_tmp_file"
+	save_config_attr "$conf" local_broker_topic_prefix topic_prefix "$conf_tmp_file"
+
+	procd_close_instance
+}
+
+service_triggers() {
+	procd_add_reload_trigger "spsp"
+	procd_add_raw_trigger "bridge_espnow.*" 2000 "/etc/init.d/$PROG_NAME" reload
+}
+
+start_service() {
+	config_load spsp
+	config_foreach start_instance bridge_espnow
+}
