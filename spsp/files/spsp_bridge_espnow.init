@@ -72,7 +72,6 @@ start_instance() {
 
 service_triggers() {
 	procd_add_reload_trigger "spsp"
-	procd_add_raw_trigger "bridge_espnow.*" 2000 "/etc/init.d/$PROG_NAME" reload
 }
 
 start_service() {
